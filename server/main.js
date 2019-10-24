@@ -56,22 +56,23 @@ async function main(audio_file,callback) {
 
 var bodyParser = require('body-parser');
 var express = require('express');
+var path = require('path');
 var app = express();
 var server = app.listen(3000, function(){
     console.log("Express server has started on port 3000")
 })
-
+var locks = require('locks');
 var multer = require('multer');
 var upload = multer({ dest: 'uploads/' })
+var upload_img = multer({ dest: 'image/' })
 var talk_data = ""
 var swi = 1;
 app.use( bodyParser.json() );       // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
   extended: true
 })); 
-app.get('/', function(req, res){
-    res.send('Hello World');
-});
+//app.use(express.static('data'));
+app.use(express.static(path.join(__dirname,'image')));
 app.get('/app', (req, res) => {
 	res.send(talk_data);
 	console.log("ok");
@@ -101,4 +102,47 @@ app.post('/upload', upload.single('file'), function(req, res){
 		res.send("permission denied")
 	  }
   }).catch(console.error);
+});
+fs= require("fs");
+app.post('/image', upload_img.single('file'), function(req, res){
+	var fileName = req.file.filename;
+	var path_='/workspace/nodejs_server/osam-guggicgulgic/server/image/';
+	fs.rename(path_+fileName, path_+fileName+".jpeg", function(err) {
+    	if ( err ) console.log('ERROR: ' + err);
+	});
+	console.log(fileName);
+	res.send("ok");
+});
+
+app.get('/', function(req, res){
+    //res.send('Hello Router, <img src="/logo.png">')
+	const directoryPath = path.join(__dirname, 'image');
+//passsing directoryPath and callback function
+	fs.readdir(directoryPath, function (err, files) {
+		//handling error
+		if (err) {
+			return console.log('Unable to scan directory: ' + err);
+		} 
+		//listing all files using forEach
+		html_txt='<html><head><a href="http://192.168.123.40:8080/browserfs.html">CCTV 확인</a></head><BODY><TABLE>'
+		var size = Object.keys(files).length;
+		var i=0;
+		files.forEach(function (file) {
+			fs.stat(directoryPath+"/"+file, function(err, stats) {
+				img_name="/"+file;
+				time=stats.mtime;
+				name="건철"
+				html_txt+='<TR heigth=300><TD width=300> <img src="'+img_name+'" alt="My Image" height=300 width=300> </TD> <TD><font size=20> 시간:'+time+'<br/> 관등성명:'+name+'<br/></font> </TD></TR>';
+				i++;
+				if(i==size){
+					html_txt+="</TABLE></BODY></html>"
+					fs.writeFile('sample.html', html_txt, (err) => {
+						// throws an error, you could also catch it here
+						if (err) throw err;
+						res.sendFile('sample.html', {root: __dirname });
+					});
+				}
+			});
+		});
+	});
 });
